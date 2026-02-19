@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Success Tool</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+    .layout.menu-hidden { grid-template-columns: 1fr; }
+    .sidebar { background: #121a26; border-right: 1px solid var(--border); padding: 1rem 0.75rem; }
+    .layout.menu-hidden .sidebar { display: none; }
+    .brand { color: var(--text); font-size: 0.9rem; font-weight: 700; padding: 0 0.5rem 0.9rem; border-bottom: 1px solid var(--border); margin-bottom: 0.8rem; }
+    .nav-link { display: block; color: var(--text-muted); text-decoration: none; padding: 0.55rem 0.6rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.82rem; }
+    .nav-link.active { color: var(--accent); background: rgba(88, 166, 255, 0.12); border: 1px solid rgba(88, 166, 255, 0.4); }
+    .main { padding: 1rem; }
+    .page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+    .menu-toggle {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    h1 { font-size: 1.2rem; color: var(--text-muted); margin: 0 0 1rem; }
+    .metric-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 1rem;
+      max-width: 420px;
+      margin-bottom: 1rem;
+    }
+    .metric-title { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 0.6rem; }
+    .metric-value { color: var(--accent); font-size: 1.6rem; font-weight: 700; margin: 0; }
+    .chart-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 1rem;
+    }
+    .chart-title {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin: 0 0 0.6rem;
+    }
+    .chart-shell {
+      width: 100%;
+      min-height: 260px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #121a26;
+      padding: 0.4rem;
+    }
+    .chart-empty {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin: 0;
+      padding: 1.2rem;
+      text-align: center;
+    }
+    .chart-axis-label {
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      margin: 0.4rem 0 0;
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+    label { color: var(--text-muted); font-size: 0.8rem; }
+    select {
+      width: 100%;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.8rem;
+    }
+    .filter-actions {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+    }
+    .btn {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.78rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Customer Success Tool</div>
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+      <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
+      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends</a>
+      <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
+      {% if oidc_enabled %}
+      {% if current_user %}
+      <a class="nav-link" href="/logout">Logout</a>
+      {% else %}
+      <a class="nav-link" href="/login">Login</a>
+      {% endif %}
+      {% endif %}
+    </aside>
+    <main class="main">
+      <div class="page-toolbar">
+        <button id="menu-toggle" class="menu-toggle" type="button">Hide menu</button>
+      </div>
+      <h1>Trends</h1>
+      <form method="get">
+        <div class="filters">
+          <div class="filter-group">
+            <label for="account_name">Account Name</label>
+            <select id="account_name" name="account_name">
+              <option value="">All</option>
+              {% for account_name in account_name_options %}
+              <option value="{{ account_name }}" {% if account_name == selected_account_name %}selected{% endif %}>{{ account_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="btn" type="submit">Apply filters</button>
+          <a class="btn" href="/trends">Clear</a>
+        </div>
+      </form>
+      <div class="metric-card">
+        <p class="metric-title">Average Health Score</p>
+        <p class="metric-value">
+          {% if average_health_score is not none %}
+            {{ "%.2f"|format(average_health_score) }}
+          {% else %}
+            N/A
+          {% endif %}
+        </p>
+      </div>
+      <div class="chart-card">
+        <p class="chart-title">Health Score over Time (by insert_time)</p>
+        <div id="health-score-chart" class="chart-shell"></div>
+        <p class="chart-axis-label">X axis: insert_time | Y axis: average health score</p>
+      </div>
+    </main>
+  </div>
+  <script>
+    function initSidebarToggle() {
+      const layout = document.querySelector(".layout");
+      const toggle = document.getElementById("menu-toggle");
+      if (!layout || !toggle) return;
+      const saved = window.localStorage.getItem("menuHidden");
+      if (saved === "true") {
+        layout.classList.add("menu-hidden");
+        toggle.textContent = "Show menu";
+      }
+      toggle.addEventListener("click", () => {
+        layout.classList.toggle("menu-hidden");
+        const hidden = layout.classList.contains("menu-hidden");
+        window.localStorage.setItem("menuHidden", hidden ? "true" : "false");
+        toggle.textContent = hidden ? "Show menu" : "Hide menu";
+      });
+    }
+    function renderHealthTrendChart() {
+      const labels = {{ trend_labels | tojson }};
+      const values = {{ trend_values | tojson }};
+      const container = document.getElementById("health-score-chart");
+      if (!container) return;
+
+      if (!labels.length || !values.length) {
+        container.innerHTML = '<p class="chart-empty">No trend data available yet.</p>';
+        return;
+      }
+
+      const width = Math.max(container.clientWidth - 12, 560);
+      const height = 240;
+      const padding = { top: 16, right: 20, bottom: 44, left: 40 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
+      const minValue = Math.min(...values);
+      const maxValue = Math.max(...values);
+      const valueSpan = maxValue - minValue || 1;
+
+      const points = values.map((value, index) => {
+        const x = padding.left + (index * plotWidth) / Math.max(values.length - 1, 1);
+        const y = padding.top + ((maxValue - value) * plotHeight) / valueSpan;
+        return { x, y, value, label: labels[index] };
+      });
+
+      const pointsAttr = points.map((point) => `${point.x},${point.y}`).join(" ");
+      const yTicks = [minValue, minValue + valueSpan / 2, maxValue];
+      const yGrid = yTicks.map((tick) => {
+        const y = padding.top + ((maxValue - tick) * plotHeight) / valueSpan;
+        return `<line x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}" stroke="#30363d" stroke-width="1" />`;
+      }).join("");
+      const yLabels = yTicks.map((tick) => {
+        const y = padding.top + ((maxValue - tick) * plotHeight) / valueSpan;
+        return `<text x="${padding.left - 8}" y="${y + 3}" text-anchor="end" fill="#8b949e" font-size="10">${tick.toFixed(1)}</text>`;
+      }).join("");
+
+      const xStep = Math.max(1, Math.floor(points.length / 6));
+      const xLabels = points
+        .filter((_, index) => index % xStep === 0 || index === points.length - 1)
+        .map((point) => {
+          const shortLabel = point.label.slice(0, 16);
+          return `<text x="${point.x}" y="${height - 14}" text-anchor="middle" fill="#8b949e" font-size="10">${shortLabel}</text>`;
+        })
+        .join("");
+
+      const circles = points
+        .map(
+          (point) =>
+            `<circle cx="${point.x}" cy="${point.y}" r="3" fill="#f2cc60"><title>${point.label}: ${point.value.toFixed(2)}</title></circle>`
+        )
+        .join("");
+
+      container.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" role="img" aria-label="Health score trend chart">
+          <rect x="${padding.left}" y="${padding.top}" width="${plotWidth}" height="${plotHeight}" fill="none" stroke="#30363d" stroke-width="1" />
+          ${yGrid}
+          ${yLabels}
+          <polyline fill="none" stroke="#f2cc60" stroke-width="2" points="${pointsAttr}" />
+          ${circles}
+          ${xLabels}
+        </svg>
+      `;
+    }
+    initSidebarToggle();
+    renderHealthTrendChart();
+  </script>
+</body>
+</html>

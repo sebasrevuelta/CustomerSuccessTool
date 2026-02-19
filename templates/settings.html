@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Success Tool</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+    .layout.menu-hidden { grid-template-columns: 1fr; }
+    .sidebar { background: #121a26; border-right: 1px solid var(--border); padding: 1rem 0.75rem; }
+    .layout.menu-hidden .sidebar { display: none; }
+    .brand { color: var(--text); font-size: 0.9rem; font-weight: 700; padding: 0 0.5rem 0.9rem; border-bottom: 1px solid var(--border); margin-bottom: 0.8rem; }
+    .nav-link { display: block; color: var(--text-muted); text-decoration: none; padding: 0.55rem 0.6rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.82rem; }
+    .nav-link.active { color: var(--accent); background: rgba(88, 166, 255, 0.12); border: 1px solid rgba(88, 166, 255, 0.4); }
+    .main { padding: 1rem; }
+    h1 { font-size: 1.2rem; color: var(--text-muted); margin: 0 0 1rem; }
+    .page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+    .menu-toggle {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.75rem;
+    }
+    .toggle-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .toggle-label { color: var(--text); font-size: 0.85rem; }
+    .toggle-btn {
+      border: 1px solid var(--accent);
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+      min-width: 72px;
+    }
+    .toggle-btn.enabled {
+      background: rgba(46, 160, 67, 0.2);
+      border-color: #2ea043;
+      color: #2ea043;
+    }
+    .toggle-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .info-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0.9rem;
+      margin: 0 0 1rem 0;
+    }
+    .info-title {
+      margin: 0 0 0.45rem 0;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .info-text {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Customer Success Tool</div>
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+      <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
+      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends</a>
+      <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
+      {% if oidc_enabled %}
+      {% if current_user %}
+      <a class="nav-link" href="/logout">Logout</a>
+      {% else %}
+      <a class="nav-link" href="/login">Login</a>
+      {% endif %}
+      {% endif %}
+    </aside>
+    <main class="main">
+      <div class="page-toolbar">
+        <button id="menu-toggle" class="menu-toggle" type="button">Hide menu</button>
+      </div>
+      <h1>Settings</h1>
+      <div class="info-card">
+        <p class="info-title">How Health Score Is Calculated</p>
+        <p class="info-text">
+          Health Score is the rounded average of the enabled factor scores: Last Activity (days_since_last_contact_score), Contributors (contributors_score), Health AE (health_ae_score), and Feature Request (critical_fr_score). Enabling a factor includes it in the average; disabling a factor removes it from the calculation. This can increase or decrease the final Health Score depending on that factor's value for each account.
+        </p>
+      </div>
+      <div class="toggle-grid">
+        <div class="toggle-card">
+          <span class="toggle-label">Last Activity factor</span>
+          <button class="toggle-btn enabled" data-toggle-id="last_activity_factor" type="button">Enabled</button>
+        </div>
+        <div class="toggle-card">
+          <span class="toggle-label">Contributors factor</span>
+          <button class="toggle-btn enabled" data-toggle-id="contributors_factor" type="button">Enabled</button>
+        </div>
+        <div class="toggle-card">
+          <span class="toggle-label">Health AE factor</span>
+          <button class="toggle-btn enabled" data-toggle-id="health_ae_factor" type="button">Enabled</button>
+        </div>
+        <div class="toggle-card">
+          <span class="toggle-label">Feature request factor</span>
+          <button class="toggle-btn enabled" data-toggle-id="feature_request_factor" type="button">Enabled</button>
+        </div>
+        <div class="toggle-card">
+          <span class="toggle-label">SMS factor</span>
+          <button class="toggle-btn" data-toggle-id="sms_factor" data-locked="true" type="button" disabled>Disabled</button>
+        </div>
+        <div class="toggle-card">
+          <span class="toggle-label">AI Detection factor</span>
+          <button class="toggle-btn" data-toggle-id="ai_detection_factor" data-locked="true" type="button" disabled>Disabled</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    function initSidebarToggle() {
+      const layout = document.querySelector(".layout");
+      const toggle = document.getElementById("menu-toggle");
+      if (!layout || !toggle) return;
+      const saved = window.localStorage.getItem("menuHidden");
+      if (saved === "true") {
+        layout.classList.add("menu-hidden");
+        toggle.textContent = "Show menu";
+      }
+      toggle.addEventListener("click", () => {
+        layout.classList.toggle("menu-hidden");
+        const hidden = layout.classList.contains("menu-hidden");
+        window.localStorage.setItem("menuHidden", hidden ? "true" : "false");
+        toggle.textContent = hidden ? "Show menu" : "Hide menu";
+      });
+    }
+    function initSettingToggles() {
+      const defaultEnabled = {
+        last_activity_factor: true,
+        contributors_factor: true,
+        health_ae_factor: true,
+        feature_request_factor: true,
+        sms_factor: false,
+        ai_detection_factor: false,
+      };
+      function setSettingCookie(toggleId, enabled) {
+        const encodedValue = enabled ? "true" : "false";
+        document.cookie = `${toggleId}=${encodedValue}; path=/; max-age=31536000; samesite=lax`;
+      }
+      const buttons = document.querySelectorAll(".toggle-btn");
+      buttons.forEach((button) => {
+        const key = `setting_${button.dataset.toggleId}`;
+        const isLocked = button.dataset.locked === "true";
+        const saved = window.localStorage.getItem(key);
+        let enabled = saved === null
+          ? Boolean(defaultEnabled[button.dataset.toggleId])
+          : saved === "true";
+        if (isLocked) {
+          enabled = false;
+          button.disabled = true;
+        }
+        if (saved === null) {
+          window.localStorage.setItem(key, enabled ? "true" : "false");
+        }
+        if (isLocked) {
+          window.localStorage.setItem(key, "false");
+        }
+        setSettingCookie(button.dataset.toggleId, enabled);
+        button.classList.toggle("enabled", enabled);
+        button.textContent = enabled ? "Enabled" : "Disabled";
+        if (isLocked) {
+          return;
+        }
+        button.addEventListener("click", () => {
+          const nextEnabled = !button.classList.contains("enabled");
+          button.classList.toggle("enabled", nextEnabled);
+          button.textContent = nextEnabled ? "Enabled" : "Disabled";
+          window.localStorage.setItem(key, nextEnabled ? "true" : "false");
+          setSettingCookie(button.dataset.toggleId, nextEnabled);
+        });
+      });
+    }
+    initSidebarToggle();
+    initSettingToggles();
+  </script>
+</body>
+</html>

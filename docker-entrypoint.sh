@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+POSTGRES_USER="${POSTGRES_USER:-appuser}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-app_password}"
+POSTGRES_DB="${POSTGRES_DB:-customer_success}"
+POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+DATABASE_URL="${DATABASE_URL:-postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}}"
+LOAD_DEMO_DATA="${LOAD_DEMO_DATA:-False}"
+
+export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DATABASE_URL LOAD_DEMO_DATA
+
+PG_MAJOR_VERSION="$(ls /etc/postgresql | sort -V | tail -n 1)"
+
+pg_ctlcluster "${PG_MAJOR_VERSION}" main start
+
+until su -s /bin/bash postgres -c "pg_isready -h 127.0.0.1 -p ${POSTGRES_PORT}" >/dev/null 2>&1; do
+  sleep 1
+done
+
+su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname postgres" <<SQL
+DO \$\$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${POSTGRES_USER}') THEN
+        CREATE ROLE ${POSTGRES_USER} WITH LOGIN PASSWORD '${POSTGRES_PASSWORD}';
+    ELSE
+        ALTER ROLE ${POSTGRES_USER} WITH LOGIN PASSWORD '${POSTGRES_PASSWORD}';
+    END IF;
+END
+\$\$;
+SQL
+
+su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname postgres" <<SQL
+SELECT 'CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER}'
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${POSTGRES_DB}')\gexec
+SQL
+
+su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB} -f /app/customer_success_schema.sql"
+
+# Ensure the application role can read/write the initialized schema and table.
+su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB}" <<SQL
+GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO ${POSTGRES_USER};
+GRANT USAGE ON SCHEMA public TO ${POSTGRES_USER};
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${POSTGRES_USER};
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+    GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${POSTGRES_USER};
+ALTER TABLE "Customer_Success" OWNER TO ${POSTGRES_USER};
+ALTER TABLE feature_request OWNER TO ${POSTGRES_USER};
+SQL
+
+# Load demo data or Google Sheet data on startup.
+if [[ "${LOAD_DEMO_DATA,,}" == "true" ]]; then
+  su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB} -f /app/customer_success_sample_data.sql"
+  echo "Loaded demo data into Customer_Success and feature_request tables."
+else
+  if ! python -c "from nurture_customer_success import sync_customer_success; import os; print(sync_customer_success(os.environ['DATABASE_URL']))"; then
+    echo "Warning: failed loading Customer_Success data from Google Sheet at startup"
+  fi
+fi
+
+GUNICORN_WORKERS="${GUNICORN_WORKERS:-2}"
+GUNICORN_THREADS="${GUNICORN_THREADS:-4}"
+GUNICORN_TIMEOUT="${GUNICORN_TIMEOUT:-180}"
+GUNICORN_GRACEFUL_TIMEOUT="${GUNICORN_GRACEFUL_TIMEOUT:-30}"
+GUNICORN_KEEPALIVE="${GUNICORN_KEEPALIVE:-5}"
+
+exec gunicorn \
+  --bind 0.0.0.0:5000 \
+  --workers "${GUNICORN_WORKERS}" \
+  --worker-class gthread \
+  --threads "${GUNICORN_THREADS}" \
+  --timeout "${GUNICORN_TIMEOUT}" \
+  --graceful-timeout "${GUNICORN_GRACEFUL_TIMEOUT}" \
+  --keep-alive "${GUNICORN_KEEPALIVE}" \
+  app:app

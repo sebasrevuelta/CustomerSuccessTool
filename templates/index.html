@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Success Tool</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+    .layout.menu-hidden {
+      grid-template-columns: 1fr;
+    }
+    .sidebar {
+      background: #121a26;
+      border-right: 1px solid var(--border);
+      padding: 1rem 0.75rem;
+    }
+    .layout.menu-hidden .sidebar {
+      display: none;
+    }
+    .brand {
+      color: var(--text);
+      font-size: 0.9rem;
+      font-weight: 700;
+      padding: 0 0.5rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.8rem;
+    }
+    .nav-link {
+      display: block;
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.55rem 0.6rem;
+      border-radius: 6px;
+      margin-bottom: 0.35rem;
+      font-size: 0.82rem;
+    }
+    .nav-link.active {
+      color: var(--accent);
+      background: rgba(88, 166, 255, 0.12);
+      border: 1px solid rgba(88, 166, 255, 0.4);
+    }
+    .main {
+      padding: 1rem;
+    }
+    .page-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.5rem;
+    }
+    .menu-toggle {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    h1 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+    label {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    select {
+      width: 100%;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.8rem;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    .range-value {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+    .filter-actions {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 0.6rem;
+      align-items: center;
+    }
+    .result-count {
+      margin: 0 0 0.9rem 0;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .refresh-message {
+      margin: 0 0 0.9rem 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .refresh-message.success { color: #2ea043; }
+    .refresh-message.error { color: #f85149; }
+    .btn {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.78rem;
+      text-decoration: none;
+    }
+    .table-wrap {
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      width: 100%;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: clamp(0.52rem, 0.7vw, 0.72rem);
+    }
+    th, td {
+      padding: 0.35rem 0.4rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      white-space: normal;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      vertical-align: top;
+    }
+    th {
+      background: rgba(210, 153, 34, 0.18);
+      color: #f2cc60;
+      font-weight: 600;
+    }
+    td.health-high { color: #2ea043; font-weight: 700; }
+    td.health-mid { color: #d29922; font-weight: 700; }
+    td.health-low { color: #f85149; font-weight: 700; }
+    td.critical-high { color: #f85149; font-weight: 700; }
+    td.opportunity-high { color: #58a6ff; font-weight: 700; }
+    td.stage-alert { color: #f85149; font-weight: 700; }
+    .legend {
+      display: flex;
+      gap: 0.9rem;
+      flex-wrap: wrap;
+      margin: 0 0 0.9rem 0;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+    }
+    .legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-red { background: #f85149; }
+    .dot-green { background: #2ea043; }
+    .dot-yellow { background: #d29922; }
+    .dot-blue { background: #58a6ff; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .empty {
+      color: var(--text-muted);
+      padding: 2rem;
+      text-align: center;
+    }
+    .toggle-checkbox {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin: 0 0 0.9rem 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    body.hide-score-factors .score-factor-col {
+      display: none;
+    }
+    .last-refresh {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Customer Success Tool</div>
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+      <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
+      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends</a>
+      <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
+      {% if oidc_enabled %}
+      {% if current_user %}
+      <a class="nav-link" href="/logout">Logout</a>
+      {% else %}
+      <a class="nav-link" href="/login">Login</a>
+      {% endif %}
+      {% endif %}
+    </aside>
+    <main class="main">
+  <div class="page-toolbar">
+    <button id="menu-toggle" class="menu-toggle" type="button">Hide menu</button>
+  </div>
+  <h1>Dashboard</h1>
+  <form method="get">
+    <div class="filters">
+      <div class="filter-group">
+        <label for="technical_account_manager">Technical Account Manager</label>
+        <select id="technical_account_manager" name="technical_account_manager">
+          <option value="">All</option>
+          {% for tam in tam_options %}
+          <option value="{{ tam }}" {% if tam == selected_tam %}selected{% endif %}>{{ tam }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="customer_stage">Customer Journey Stage</label>
+        <select id="customer_stage" name="customer_stage">
+          <option value="">All</option>
+          {% for stage in stage_options %}
+          <option value="{{ stage }}" {% if stage == selected_stage %}selected{% endif %}>{{ stage }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="account_owner">Account Owner</label>
+        <select id="account_owner" name="account_owner">
+          <option value="">All</option>
+          {% for owner in owner_options %}
+          <option value="{{ owner }}" {% if owner == selected_owner %}selected{% endif %}>{{ owner }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="annual_recurring_revenue_min">Minimum ARR</label>
+        <input
+          id="annual_recurring_revenue_min"
+          name="annual_recurring_revenue_min"
+          type="range"
+          min="0"
+          max="{{ arr_max_value }}"
+          step="0.01"
+          value="{{ arr_min_value }}"
+          oninput="document.getElementById('arr-min-value').textContent = formatNumber(this.value)"
+        >
+        <span class="range-value">Current minimum: <span id="arr-min-value">{{ arr_min_value }}</span></span>
+      </div>
+      <div class="filter-group">
+        <label for="open_critical_feature_request_min">Minimum Critical FR</label>
+        <input
+          id="open_critical_feature_request_min"
+          name="open_critical_feature_request_min"
+          type="range"
+          min="0"
+          max="{{ critical_max_value }}"
+          step="1"
+          value="{{ critical_min_value }}"
+          oninput="document.getElementById('critical-min-value').textContent = this.value"
+        >
+        <span class="range-value">Current minimum: <span id="critical-min-value">{{ critical_min_value }}</span></span>
+      </div>
+      <div class="filter-group">
+        <label for="active_contributors_count_min">Minimum Contributors</label>
+        <input
+          id="active_contributors_count_min"
+          name="active_contributors_count_min"
+          type="range"
+          min="0"
+          max="{{ contributors_max_value }}"
+          step="0.01"
+          value="{{ contributors_min_value }}"
+          oninput="document.getElementById('contributors-min-value').textContent = formatNumber(this.value)"
+        >
+        <span class="range-value">Current minimum: <span id="contributors-min-value">{{ contributors_min_value }}</span></span>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn" type="submit">Apply filters</button>
+      <a class="btn" href="/">Clear</a>
+    </div>
+  </form>
+  <form method="post" action="/refresh" onsubmit="syncRefreshFilters()">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="technical_account_manager" value="{{ selected_tam }}">
+    <input type="hidden" name="customer_stage" value="{{ selected_stage }}">
+    <input type="hidden" name="account_owner" value="{{ selected_owner }}">
+    <input id="refresh-arr-min" type="hidden" name="annual_recurring_revenue_min" value="{{ arr_min_value }}">
+    <input id="refresh-critical-min" type="hidden" name="open_critical_feature_request_min" value="{{ critical_min_value }}">
+    <input id="refresh-contributors-min" type="hidden" name="active_contributors_count_min" value="{{ contributors_min_value }}">
+    <div class="filter-actions">
+      <button class="btn" type="submit">Refresh</button>
+      <span class="last-refresh">Last refresh {{ last_refresh_display }}</span>
+    </div>
+  </form>
+  {% if refresh_message %}
+  <p class="refresh-message {{ refresh_status }}">{{ refresh_message }}</p>
+  {% endif %}
+  <label class="toggle-checkbox" for="hide-score-factors-toggle">
+    <input id="hide-score-factors-toggle" type="checkbox" checked>
+    Hide score factors
+  </label>
+  <div class="legend" aria-label="Color legend">
+    <span class="legend-item"><span class="legend-dot dot-red"></span>Red = alert</span>
+    <span class="legend-item"><span class="legend-dot dot-green"></span>Green = healthy</span>
+    <span class="legend-item"><span class="legend-dot dot-yellow"></span>Yellow = warning</span>
+    <span class="legend-item"><span class="legend-dot dot-blue"></span>Blue = opportunity</span>
+  </div>
+  <p class="result-count">Showing {{ rows|length }} account{% if rows|length != 1 %}s{% endif %}</p>
+  <div class="table-wrap">
+    {% if headers %}
+    <table>
+      <thead>
+        <tr>
+          {% for h in headers %}
+          {% if h not in ['days_since_last_contact', 'license_expiration_date', 'total_contributors', 'contributors_last_30_days', 'insert_time'] %}
+          {% if h == 'deployment_id' %}
+          <th>ID</th>
+          {% elif h == 'health_score' %}
+          <th>Health Score</th>
+          {% elif h == 'account_name' %}
+          <th>Name</th>
+          {% elif h == 'customer_stage' %}
+          <th>Stage</th>
+          {% elif h == 'account_owner' %}
+          <th>Owner</th>
+          {% elif h == 'annual_recurring_revenue' %}
+          <th>ARR</th>
+          {% elif h == 'technical_account_manager' %}
+          <th>TAM</th>
+          {% elif h == 'last_engagement_date' %}
+          <th>Last Contact</th>
+          {% elif h == 'active_contributors_count' %}
+          <th>Contributors</th>
+          {% elif h == 'contributors_score' %}
+          <th class="score-factor-col">Contributors Score</th>
+          {% elif h == 'days_since_last_contact_score' %}
+          <th class="score-factor-col">Days Since Last Contact Score</th>
+          {% elif h == 'critical_fr_score' %}
+          <th class="score-factor-col">Critical FR Score</th>
+          {% elif h == 'health_ae_score' %}
+          <th class="score-factor-col">Health AE Score</th>
+          {% elif h == 'health_color' %}
+          <th>Health AE</th>
+          {% elif h == 'latest_contract_end_date' %}
+          <th>Contract End</th>
+          {% elif h == 'open_critical_feature_request' %}
+          <th>Critical FR</th>
+          {% else %}
+          <th>{{ h | replace('_', ' ') | title }}</th>
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for column in headers %}
+          {% if column not in ['days_since_last_contact', 'license_expiration_date', 'total_contributors', 'contributors_last_30_days', 'insert_time'] %}
+          {% set value = row.get(column, '') %}
+          {% set display_value = value %}
+          {% set column_class = '' %}
+          {% if column == 'health_score' and value is not none and value != '' %}
+            {% if value >= 80 %}
+              {% set column_class = 'health-high' %}
+            {% elif value >= 50 and value < 80 %}
+              {% set column_class = 'health-mid' %}
+            {% elif value < 50 %}
+              {% set column_class = 'health-low' %}
+            {% endif %}
+          {% endif %}
+          {% if column == 'open_critical_feature_request' and value is not none and value != '' and value >= 4 %}
+            {% set column_class = 'critical-high' %}
+          {% endif %}
+          {% if column == 'customer_stage' and value|string|lower == 'onboarding' %}
+            {% set column_class = 'stage-alert' %}
+          {% endif %}
+          {% if column in ['sast', 'ssc', 'secrets'] and (value is sameas false or value|string|lower == 'false') %}
+            {% set column_class = 'opportunity-high' %}
+          {% endif %}
+          {% if column == 'active_contributors_count' and value is not none and value != '' and value > 100 %}
+            {% set column_class = 'opportunity-high' %}
+          {% endif %}
+          {% if column == 'health_color' and value is not none and value != '' %}
+            {% if value|string|lower == 'green' %}
+              {% set column_class = 'health-high' %}
+            {% elif value|string|lower == 'yellow' %}
+              {% set column_class = 'health-mid' %}
+            {% elif value|string|lower == 'red' %}
+              {% set column_class = 'health-low' %}
+            {% endif %}
+          {% endif %}
+          {% if column == 'annual_recurring_revenue' and value is not none and value != '' %}
+            {% set display_value = "${:,.0f}".format(value|float) %}
+          {% endif %}
+          {% if column == 'active_contributors_count' and value is not none and value != '' %}
+            {% set display_value = "%.2f%%"|format(value|float) %}
+          {% endif %}
+          {% if column in ['contributors_score', 'days_since_last_contact_score', 'critical_fr_score', 'health_ae_score'] %}
+          <td class="{{ column_class }} score-factor-col">{{ display_value }}</td>
+          {% else %}
+          <td class="{{ column_class }}">{{ display_value }}</td>
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No data available for the selected filters.</p>
+    {% endif %}
+  </div>
+  <script>
+    function initSidebarToggle() {
+      const layout = document.querySelector(".layout");
+      const toggle = document.getElementById("menu-toggle");
+      if (!layout || !toggle) return;
+
+      const saved = window.localStorage.getItem("menuHidden");
+      if (saved === "true") {
+        layout.classList.add("menu-hidden");
+        toggle.textContent = "Show menu";
+      }
+
+      toggle.addEventListener("click", () => {
+        layout.classList.toggle("menu-hidden");
+        const hidden = layout.classList.contains("menu-hidden");
+        window.localStorage.setItem("menuHidden", hidden ? "true" : "false");
+        toggle.textContent = hidden ? "Show menu" : "Hide menu";
+      });
+    }
+
+    function formatNumber(value) {
+      const parsed = Number.parseFloat(value);
+      if (Number.isNaN(parsed)) {
+        return value;
+      }
+      return parsed.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
+    }
+
+    function syncRefreshFilters() {
+      const arrSlider = document.getElementById("annual_recurring_revenue_min");
+      const criticalSlider = document.getElementById("open_critical_feature_request_min");
+      const contributorsSlider = document.getElementById("active_contributors_count_min");
+      const refreshArrMin = document.getElementById("refresh-arr-min");
+      const refreshCriticalMin = document.getElementById("refresh-critical-min");
+      const refreshContributorsMin = document.getElementById("refresh-contributors-min");
+      if (arrSlider && refreshArrMin) {
+        refreshArrMin.value = arrSlider.value;
+      }
+      if (criticalSlider && refreshCriticalMin) {
+        refreshCriticalMin.value = criticalSlider.value;
+      }
+      if (contributorsSlider && refreshContributorsMin) {
+        refreshContributorsMin.value = contributorsSlider.value;
+      }
+    }
+
+    function initHideScoreFactorsToggle() {
+      const toggle = document.getElementById("hide-score-factors-toggle");
+      if (!toggle) return;
+      const saved = window.localStorage.getItem("hideScoreFactors");
+      const hidden = saved === null ? true : saved === "true";
+      toggle.checked = hidden;
+      document.body.classList.toggle("hide-score-factors", hidden);
+      toggle.addEventListener("change", () => {
+        const nextHidden = toggle.checked;
+        window.localStorage.setItem("hideScoreFactors", nextHidden ? "true" : "false");
+        document.body.classList.toggle("hide-score-factors", nextHidden);
+      });
+    }
+
+    const arrValue = document.getElementById("arr-min-value");
+    if (arrValue) {
+      arrValue.textContent = formatNumber(arrValue.textContent);
+    }
+    const contributorsValue = document.getElementById("contributors-min-value");
+    if (contributorsValue) {
+      contributorsValue.textContent = formatNumber(contributorsValue.textContent);
+    }
+    initSidebarToggle();
+    initHideScoreFactorsToggle();
+  </script>
+    </main>
+  </div>
+</body>
+</html>

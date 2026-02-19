@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Success Tool</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+      background: var(--bg);
+      color: var(--text);
+    }
+    .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+    .layout.menu-hidden { grid-template-columns: 1fr; }
+    .sidebar { background: #121a26; border-right: 1px solid var(--border); padding: 1rem 0.75rem; }
+    .layout.menu-hidden .sidebar { display: none; }
+    .brand { color: var(--text); font-size: 0.9rem; font-weight: 700; padding: 0 0.5rem 0.9rem; border-bottom: 1px solid var(--border); margin-bottom: 0.8rem; }
+    .nav-link { display: block; color: var(--text-muted); text-decoration: none; padding: 0.55rem 0.6rem; border-radius: 6px; margin-bottom: 0.35rem; font-size: 0.82rem; }
+    .nav-link.active { color: var(--accent); background: rgba(88, 166, 255, 0.12); border: 1px solid rgba(88, 166, 255, 0.4); }
+    .main { padding: 1rem; }
+    .page-toolbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
+    .menu-toggle {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    h1 { font-size: 1.2rem; color: var(--text-muted); margin: 0 0 1rem; }
+    .result-count { margin: 0 0 0.9rem; color: var(--text-muted); font-size: 0.8rem; }
+    .refresh-message { margin: 0 0 0.9rem; color: var(--text-muted); font-size: 0.8rem; }
+    .refresh-message.success { color: #2ea043; }
+    .refresh-message.error { color: #f85149; }
+    .filter-actions { margin-bottom: 1rem; display: flex; gap: 0.6rem; align-items: center; }
+    .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .filter-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+    label { color: var(--text-muted); font-size: 0.8rem; }
+    select {
+      width: 100%;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.8rem;
+    }
+    .btn {
+      background: rgba(88, 166, 255, 0.12);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.45rem 0.7rem;
+      font-size: 0.78rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .table-wrap { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); width: 100%; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: clamp(0.52rem, 0.7vw, 0.72rem); }
+    th, td { padding: 0.35rem 0.4rem; text-align: left; border-bottom: 1px solid var(--border); white-space: normal; word-break: break-word; overflow-wrap: anywhere; vertical-align: top; }
+    th { background: rgba(210, 153, 34, 0.18); color: #f2cc60; font-weight: 600; }
+    td.priority-p0 { color: #f85149; font-weight: 700; }
+    td.priority-p1 { color: #d29922; font-weight: 700; }
+    td.link-missing { color: #f85149; font-weight: 700; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+    .empty { color: var(--text-muted); padding: 2rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Customer Success Tool</div>
+      <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
+      <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
+      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends</a>
+      <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
+      {% if oidc_enabled %}
+      {% if current_user %}
+      <a class="nav-link" href="/logout">Logout</a>
+      {% else %}
+      <a class="nav-link" href="/login">Login</a>
+      {% endif %}
+      {% endif %}
+    </aside>
+    <main class="main">
+      <div class="page-toolbar">
+        <button id="menu-toggle" class="menu-toggle" type="button">Hide menu</button>
+      </div>
+      <h1>Feature Request</h1>
+      <form method="get">
+        <div class="filters">
+          <div class="filter-group">
+            <label for="account_name">Account Name</label>
+            <select id="account_name" name="account_name">
+              <option value="">All</option>
+              {% for account_name in account_name_options %}
+              <option value="{{ account_name }}" {% if account_name == selected_account_name %}selected{% endif %}>{{ account_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <button class="btn" type="submit">Apply filters</button>
+          <a class="btn" href="/feature-requests">Clear</a>
+        </div>
+      </form>
+      <form method="post" action="/refresh-feature-requests">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="account_name" value="{{ selected_account_name }}">
+        <div class="filter-actions">
+          <button class="btn" type="submit">Refresh</button>
+        </div>
+      </form>
+      {% if refresh_message %}
+      <p class="refresh-message {{ refresh_status }}">{{ refresh_message }}</p>
+      {% endif %}
+      <p class="result-count">Showing {{ rows|length }} feature request{% if rows|length != 1 %}s{% endif %}</p>
+      <div class="table-wrap">
+        {% if headers %}
+        <table>
+          <thead>
+            <tr>
+              {% for h in headers %}
+              {% if h not in ['status', 'opportunity', 'subject', 'open', 'closed', 'insert_time'] %}
+              <th>{{ h | replace('_', ' ') | title }}</th>
+              {% endif %}
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in rows %}
+            <tr>
+              {% for column in headers %}
+              {% if column not in ['status', 'opportunity', 'subject', 'open', 'closed', 'insert_time'] %}
+              {% set value = row.get(column, '') %}
+              {% set column_class = '' %}
+              {% if column == 'priority' and value is not none %}
+                {% if value|string|upper == 'P0' %}
+                  {% set column_class = 'priority-p0' %}
+                {% elif value|string|upper == 'P1' %}
+                  {% set column_class = 'priority-p1' %}
+                {% endif %}
+              {% endif %}
+              {% if column == 'linear_url_fr' and (value is none or value|string|trim == '' or value|string|lower == 'none') %}
+                {% set column_class = 'link-missing' %}
+              {% endif %}
+              <td class="{{ column_class }}">{{ value }}</td>
+              {% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty">No feature request data available.</p>
+        {% endif %}
+      </div>
+    </main>
+  </div>
+  <script>
+    function initSidebarToggle() {
+      const layout = document.querySelector(".layout");
+      const toggle = document.getElementById("menu-toggle");
+      if (!layout || !toggle) return;
+      const saved = window.localStorage.getItem("menuHidden");
+      if (saved === "true") {
+        layout.classList.add("menu-hidden");
+        toggle.textContent = "Show menu";
+      }
+      toggle.addEventListener("click", () => {
+        layout.classList.toggle("menu-hidden");
+        const hidden = layout.classList.contains("menu-hidden");
+        window.localStorage.setItem("menuHidden", hidden ? "true" : "false");
+        toggle.textContent = hidden ? "Show menu" : "Hide menu";
+      });
+    }
+    initSidebarToggle();
+  </script>
+</body>
+</html>
