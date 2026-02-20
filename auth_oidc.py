@@ -4,6 +4,7 @@ OIDC authentication routes and setup.
 from __future__ import annotations
 
 import os
+from urllib.parse import urlencode
 
 import flask
 from authlib.integrations.flask_client import OAuth
@@ -22,6 +23,10 @@ def _get_required(name: str):
 
 def _get_redirect_uri():
     return _get_required("OIDC_REDIRECT_URI")
+
+
+def _get_post_logout_redirect_uri():
+    return os.environ.get("OIDC_POST_LOGOUT_REDIRECT_URI", "").strip()
 
 
 def setup_oidc(app):
@@ -78,7 +83,28 @@ def register_auth_routes(app):
     def logout():
         if not oidc_enabled():
             return flask.redirect(flask.url_for("index"))
-        flask.session.pop("user", None)
-        flask.session.pop("id_token", None)
-        flask.session.pop("post_login_redirect", None)
-        return flask.redirect(flask.url_for("login"))
+        oauth = app.extensions.get("oidc_oauth")
+        id_token = flask.session.get("id_token")
+        flask.session.clear()
+
+        logout_redirect = None
+        post_logout_redirect_uri = _get_post_logout_redirect_uri()
+        if oauth is not None and post_logout_redirect_uri:
+            try:
+                metadata = oauth.oidc.load_server_metadata()
+            except Exception:
+                metadata = {}
+            end_session_endpoint = metadata.get("end_session_endpoint")
+            if end_session_endpoint:
+                params = {"post_logout_redirect_uri": post_logout_redirect_uri}
+                if id_token:
+                    params["id_token_hint"] = id_token
+                logout_redirect = f"{end_session_endpoint}?{urlencode(params)}"
+
+        response = flask.redirect(logout_redirect or flask.url_for("login"))
+        response.delete_cookie(
+            app.config.get("SESSION_COOKIE_NAME", "session"),
+            path=app.config.get("SESSION_COOKIE_PATH", "/"),
+            domain=app.config.get("SESSION_COOKIE_DOMAIN"),
+        )
+        return response

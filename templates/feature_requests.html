@@ -45,7 +45,7 @@
     .refresh-message.success { color: #2ea043; }
     .refresh-message.error { color: #f85149; }
     .filter-actions { margin-bottom: 1rem; display: flex; gap: 0.6rem; align-items: center; }
-    .filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
     .filter-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
     label { color: var(--text-muted); font-size: 0.8rem; }
     select {
@@ -111,6 +111,24 @@
               {% endfor %}
             </select>
           </div>
+          <div class="filter-group">
+            <label for="technical_account_manager">Technical Account Manager</label>
+            <select id="technical_account_manager" name="technical_account_manager">
+              <option value="">All</option>
+              {% for tam in technical_account_manager_options %}
+              <option value="{{ tam }}" {% if tam == selected_technical_account_manager %}selected{% endif %}>{{ tam }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="priority">Priority</label>
+            <select id="priority" name="priority">
+              <option value="">All</option>
+              {% for p in priority_options %}
+              <option value="{{ p }}" {% if p == selected_priority %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
         <div class="filter-actions">
           <button class="btn" type="submit">Apply filters</button>
@@ -120,6 +138,8 @@
       <form method="post" action="/refresh-feature-requests">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="hidden" name="account_name" value="{{ selected_account_name }}">
+        <input type="hidden" name="technical_account_manager" value="{{ selected_technical_account_manager }}">
+        <input type="hidden" name="priority" value="{{ selected_priority }}">
         <div class="filter-actions">
           <button class="btn" type="submit">Refresh</button>
         </div>

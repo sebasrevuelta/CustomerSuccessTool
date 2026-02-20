@@ -12,11 +12,28 @@ import flask
 from sqlalchemy import create_engine
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def get_read_database_url():
+    if _env_bool("READ_FROM_INTERNAL_DATABASE", True):
+        return get_database_url()
+
+    metabase_database_url = os.environ.get("METABASE_DATABASE_URL")
+    if not metabase_database_url:
+        raise RuntimeError(
+            "METABASE_DATABASE_URL environment variable is required when "
+            "READ_FROM_INTERNAL_DATABASE=false"
+        )
+    return metabase_database_url
+
+
 def get_engine():
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL environment variable is required")
-    return create_engine(database_url, pool_pre_ping=True)
+    return create_engine(get_read_database_url(), pool_pre_ping=True)
 
 
 def get_database_url():

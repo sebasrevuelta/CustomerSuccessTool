@@ -6,9 +6,10 @@ POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-app_password}"
 POSTGRES_DB="${POSTGRES_DB:-customer_success}"
 POSTGRES_PORT="${POSTGRES_PORT:-5432}"
 DATABASE_URL="${DATABASE_URL:-postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}}"
-LOAD_DEMO_DATA="${LOAD_DEMO_DATA:-False}"
+LOAD_DEMO_DATA="${LOAD_DEMO_DATA:-True}"
+READ_FROM_INTERNAL_DATABASE="${READ_FROM_INTERNAL_DATABASE:-True}"
 
-export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DATABASE_URL LOAD_DEMO_DATA
+export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DATABASE_URL LOAD_DEMO_DATA READ_FROM_INTERNAL_DATABASE
 
 PG_MAJOR_VERSION="$(ls /etc/postgresql | sort -V | tail -n 1)"
 
@@ -51,10 +52,14 @@ SQL
 # Load demo data or Google Sheet data on startup.
 if [[ "${LOAD_DEMO_DATA,,}" == "true" ]]; then
   su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB} -f /app/customer_success_sample_data.sql"
-  echo "Loaded demo data into Customer_Success and feature_request tables."
+  echo "Loaded demo data into Customer_Success, feature_request, and Customer_success_health_score tables."
 else
-  if ! python -c "from nurture_customer_success import sync_customer_success; import os; print(sync_customer_success(os.environ['DATABASE_URL']))"; then
-    echo "Warning: failed loading Customer_Success data from Google Sheet at startup"
+  if [[ "${READ_FROM_INTERNAL_DATABASE,,}" == "true" ]]; then
+    if ! python -c "from nurture_customer_success import sync_customer_success; import os; print(sync_customer_success(os.environ['DATABASE_URL']))"; then
+      echo "Warning: failed loading Customer_Success data from Google Sheet at startup"
+    fi
+  else
+    echo "READ_FROM_INTERNAL_DATABASE=false -> app will read from METABASE_DATABASE_URL; skipping internal startup sync."
   fi
 fi
 

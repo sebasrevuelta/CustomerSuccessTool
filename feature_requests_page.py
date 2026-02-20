@@ -11,7 +11,11 @@ from app_common import get_database_url, get_engine, get_or_create_csrf_token, v
 from nurture_feature_request import sync_feature_request
 
 
-def get_feature_request_data(account_name=None):
+def get_feature_request_data(
+    account_name=None,
+    technical_account_manager=None,
+    priority=None,
+):
     try:
         with get_engine().connect() as connection:
             table = Table("feature_request", MetaData(), autoload_with=connection)
@@ -24,6 +28,12 @@ def get_feature_request_data(account_name=None):
                 query = query.where(table.c.insert_time == latest_insert_time)
             if account_name:
                 query = query.where(table.c.account_name == account_name)
+            if technical_account_manager:
+                query = query.where(
+                    table.c.technical_account_manager == technical_account_manager
+                )
+            if priority:
+                query = query.where(table.c.priority == priority)
             query = query.order_by(table.c.case_number)
 
             result = connection.execute(query)
@@ -41,18 +51,57 @@ def get_feature_request_data(account_name=None):
                 .order_by(table.c.account_name)
             )
             account_name_options = [row[0] for row in connection.execute(account_name_query)]
-            return headers, rows, account_name_options
+            tam_query = select(table.c.technical_account_manager).distinct()
+            if latest_insert_time is not None:
+                tam_query = tam_query.where(table.c.insert_time == latest_insert_time)
+            tam_query = (
+                tam_query.where(table.c.technical_account_manager.is_not(None))
+                .where(table.c.technical_account_manager != "")
+                .order_by(table.c.technical_account_manager)
+            )
+            technical_account_manager_options = [
+                row[0] for row in connection.execute(tam_query)
+            ]
+
+            priority_query = select(table.c.priority).distinct()
+            if latest_insert_time is not None:
+                priority_query = priority_query.where(table.c.insert_time == latest_insert_time)
+            priority_query = (
+                priority_query.where(table.c.priority.is_not(None))
+                .order_by(table.c.priority)
+            )
+            priority_options = [str(row[0]) for row in connection.execute(priority_query)]
+
+            return (
+                headers,
+                rows,
+                account_name_options,
+                technical_account_manager_options,
+                priority_options,
+            )
     except (SQLAlchemyError, RuntimeError) as exc:
         flask.current_app.logger.exception("Failed to read feature_request data: %s", exc)
-        return [], [], []
+        return [], [], [], [], []
 
 
 def register_feature_request_routes(app):
     @app.get("/feature-requests", endpoint="feature_requests")
     def feature_requests():
         selected_account_name = flask.request.args.get("account_name", "").strip()
-        headers, rows, account_name_options = get_feature_request_data(
-            account_name=selected_account_name or None
+        selected_technical_account_manager = flask.request.args.get(
+            "technical_account_manager", ""
+        ).strip()
+        selected_priority = flask.request.args.get("priority", "").strip()
+        (
+            headers,
+            rows,
+            account_name_options,
+            technical_account_manager_options,
+            priority_options,
+        ) = get_feature_request_data(
+            account_name=selected_account_name or None,
+            technical_account_manager=selected_technical_account_manager or None,
+            priority=selected_priority or None,
         )
         return flask.render_template(
             "feature_requests.html",
@@ -60,7 +109,11 @@ def register_feature_request_routes(app):
             headers=headers,
             rows=rows,
             account_name_options=account_name_options,
+            technical_account_manager_options=technical_account_manager_options,
+            priority_options=priority_options,
             selected_account_name=selected_account_name,
+            selected_technical_account_manager=selected_technical_account_manager,
+            selected_priority=selected_priority,
             refresh_message=flask.request.args.get("refresh_message", ""),
             refresh_status=flask.request.args.get("refresh_status", ""),
             csrf_token=get_or_create_csrf_token(),
@@ -70,6 +123,10 @@ def register_feature_request_routes(app):
     def refresh_feature_requests():
         validate_csrf()
         selected_account_name = flask.request.form.get("account_name", "").strip()
+        selected_technical_account_manager = flask.request.form.get(
+            "technical_account_manager", ""
+        ).strip()
+        selected_priority = flask.request.form.get("priority", "").strip()
         try:
             synced_rows = sync_feature_request(get_database_url())
             refresh_message = (
@@ -86,6 +143,8 @@ def register_feature_request_routes(app):
             flask.url_for(
                 "feature_requests",
                 account_name=selected_account_name,
+                technical_account_manager=selected_technical_account_manager,
+                priority=selected_priority,
                 refresh_message=refresh_message,
                 refresh_status=refresh_status,
             )

@@ -2,10 +2,10 @@
 Application entrypoint and route registration.
 """
 import os
-import secrets
 
 import flask
 from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from auth_oidc import oidc_enabled, register_auth_routes, setup_oidc
 from dashboard_page import register_dashboard_routes
@@ -15,8 +15,31 @@ from trends_page import register_trends_routes
 
 load_dotenv()
 
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 app = flask.Flask(__name__)
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", secrets.token_hex(32))
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = _env_bool("SESSION_COOKIE_SECURE", False)
+app.config["SESSION_COOKIE_SAMESITE"] = os.environ.get("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_NAME"] = os.environ.get(
+    "SESSION_COOKIE_NAME", "customer_success_session"
+)
+
+if _env_bool("TRUST_PROXY_HEADERS", False):
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=int(os.environ.get("PROXY_FIX_X_FOR", "1")),
+        x_proto=int(os.environ.get("PROXY_FIX_X_PROTO", "1")),
+        x_host=int(os.environ.get("PROXY_FIX_X_HOST", "1")),
+        x_port=int(os.environ.get("PROXY_FIX_X_PORT", "1")),
+    )
 
 setup_oidc(app)
 register_auth_routes(app)

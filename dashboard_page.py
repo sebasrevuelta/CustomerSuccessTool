@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 import flask
-from sqlalchemy import MetaData, Table, func, insert, select
+from sqlalchemy import MetaData, Table, create_engine, func, insert, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app_common import (
@@ -253,7 +253,7 @@ def persist_customer_success_health_score_snapshot(
     use_health_ae_factor,
     use_feature_request_factor,
 ):
-    with get_engine().begin() as connection:
+    with create_engine(database_url, pool_pre_ping=True).begin() as connection:
         customer_table = Table("Customer_Success", MetaData(), autoload_with=connection)
         health_table = Table(
             "Customer_success_health_score",
