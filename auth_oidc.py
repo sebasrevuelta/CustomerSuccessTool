@@ -29,6 +29,13 @@ def _get_post_logout_redirect_uri():
     return os.environ.get("OIDC_POST_LOGOUT_REDIRECT_URI", "").strip()
 
 
+def _env_bool(name: str, default: bool = False):
+    raw_value = os.environ.get(name)
+    if raw_value is None:
+        return default
+    return raw_value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def setup_oidc(app):
     if not oidc_enabled():
         return
@@ -96,10 +103,16 @@ def register_auth_routes(app):
                 metadata = {}
             end_session_endpoint = metadata.get("end_session_endpoint")
             if end_session_endpoint:
-                params = {"post_logout_redirect_uri": post_logout_redirect_uri}
+                params = {}
+                if _env_bool("OIDC_USE_POST_LOGOUT_REDIRECT_URI", False):
+                    params["post_logout_redirect_uri"] = post_logout_redirect_uri
                 if id_token:
                     params["id_token_hint"] = id_token
-                logout_redirect = f"{end_session_endpoint}?{urlencode(params)}"
+                logout_redirect = (
+                    f"{end_session_endpoint}?{urlencode(params)}"
+                    if params
+                    else end_session_endpoint
+                )
 
         response = flask.redirect(logout_redirect or flask.url_for("login"))
         response.delete_cookie(
