@@ -40,13 +40,17 @@
       cursor: pointer;
     }
     h1 { font-size: 1.2rem; color: var(--text-muted); margin: 0 0 1rem; }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
     .metric-card {
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface);
       padding: 1rem;
-      max-width: 420px;
-      margin-bottom: 1rem;
     }
     .metric-title { color: var(--text-muted); font-size: 0.8rem; margin: 0 0 0.6rem; }
     .metric-value { color: var(--accent); font-size: 1.6rem; font-weight: 700; margin: 0; }
@@ -127,7 +131,7 @@
       <div class="brand">Customer Success Tool</div>
       <a class="nav-link {% if active_page == 'dashboard' %}active{% endif %}" href="/">Dashboard</a>
       <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
-      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends</a>
+      <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends &amp; Metrics</a>
       <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
       {% if oidc_enabled %}
       {% if current_user %}
@@ -141,7 +145,7 @@
       <div class="page-toolbar">
         <button id="menu-toggle" class="menu-toggle" type="button">Hide menu</button>
       </div>
-      <h1>Trends</h1>
+      <h1>Trends &amp; Metrics</h1>
       <form method="get">
         <div class="filters">
           <div class="filter-group">
@@ -159,15 +163,25 @@
           <a class="btn" href="/trends">Clear</a>
         </div>
       </form>
-      <div class="metric-card">
-        <p class="metric-title">Average Health Score</p>
-        <p class="metric-value">
-          {% if average_health_score is not none %}
-            {{ "%.2f"|format(average_health_score) }}
-          {% else %}
-            N/A
-          {% endif %}
-        </p>
+      <div class="metric-grid">
+        <div class="metric-card">
+          <p class="metric-title">Average Health Score</p>
+          <p class="metric-value">
+            {% if average_health_score is not none %}
+              {{ "%.2f"|format(average_health_score) }}
+            {% else %}
+              N/A
+            {% endif %}
+          </p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-title">Number of Accounts</p>
+          <p class="metric-value">{{ number_of_accounts }}</p>
+        </div>
+        <div class="metric-card">
+          <p class="metric-title">Total ARR</p>
+          <p class="metric-value">${{ "{:,.0f}".format(total_arr|float) }}</p>
+        </div>
       </div>
       <div class="chart-card">
         <p class="chart-title">Health Score over Time (by insert_time)</p>

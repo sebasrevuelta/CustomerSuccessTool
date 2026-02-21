@@ -14,12 +14,31 @@ from sqlalchemy import MetaData, Table, create_engine, text
 
 load_dotenv()
 
-GOOGLE_CREDENTIALS_PATH = os.environ.get("GOOGLE_CREDENTIALS_PATH", "credentials.json")
-GOOGLE_SHEET_ID = os.environ.get("GOOGLE_SHEET_ID", "")
-GOOGLE_FEATURE_REQUEST_TAB = os.environ.get("GOOGLE_FEATURE_REQUEST_TAB", "SF_FR_Data")
-GOOGLE_FEATURE_REQUEST_HEADER_ROW = int(
-    os.environ.get("GOOGLE_FEATURE_REQUEST_HEADER_ROW", "1")
-)
+def _env_str(name, default=""):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip()
+    return normalized if normalized else default
+
+
+def _env_int(name, default):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    normalized = value.strip()
+    if not normalized:
+        return default
+    try:
+        return int(normalized)
+    except ValueError:
+        return default
+
+
+GOOGLE_CREDENTIALS_PATH = _env_str("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+GOOGLE_SHEET_ID = _env_str("GOOGLE_SHEET_ID", "")
+GOOGLE_FEATURE_REQUEST_TAB = _env_str("GOOGLE_FEATURE_REQUEST_TAB", "SF_FR_Data")
+GOOGLE_FEATURE_REQUEST_HEADER_ROW = _env_int("GOOGLE_FEATURE_REQUEST_HEADER_ROW", 1)
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 FEATURE_REQUEST_BOOL_FIELDS = {"open", "closed"}
