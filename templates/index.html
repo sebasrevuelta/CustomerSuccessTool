@@ -228,13 +228,6 @@
       <a class="nav-link {% if active_page == 'feature_requests' %}active{% endif %}" href="/feature-requests">Feature Request</a>
       <a class="nav-link {% if active_page == 'trends' %}active{% endif %}" href="/trends">Trends &amp; Metrics</a>
       <a class="nav-link {% if active_page == 'settings' %}active{% endif %}" href="/settings">Settings</a>
-      {% if oidc_enabled %}
-      {% if current_user %}
-      <a class="nav-link" href="/logout">Logout</a>
-      {% else %}
-      <a class="nav-link" href="/login">Login</a>
-      {% endif %}
-      {% endif %}
     </aside>
     <main class="main">
   <div class="page-toolbar">

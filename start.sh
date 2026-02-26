@@ -1,4 +1,5 @@
-docker build -t customer-success-tool .
+
+docker build -t customer-success-tool:v1.0 .
 docker run --rm -p 5001:5000 -p 5432:5432 \
   --env-file .env \
   -e POSTGRES_DB=customer_success \

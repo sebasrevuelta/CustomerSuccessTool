@@ -13,13 +13,13 @@ export POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB POSTGRES_PORT DATABASE_URL LO
 
 PG_MAJOR_VERSION="$(ls /etc/postgresql | sort -V | tail -n 1)"
 
-pg_ctlcluster "${PG_MAJOR_VERSION}" main start
+sudo pg_ctlcluster "${PG_MAJOR_VERSION}" main start
 
-until su -s /bin/bash postgres -c "pg_isready -h 127.0.0.1 -p ${POSTGRES_PORT}" >/dev/null 2>&1; do
+until sudo -u postgres pg_isready -h 127.0.0.1 -p "${POSTGRES_PORT}" >/dev/null 2>&1; do
   sleep 1
 done
 
-su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname postgres" <<SQL
+sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname postgres <<SQL
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${POSTGRES_USER}') THEN
@@ -31,15 +31,15 @@ END
 \$\$;
 SQL
 
-su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname postgres" <<SQL
+sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname postgres <<SQL
 SELECT 'CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER}'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${POSTGRES_DB}')\gexec
 SQL
 
-su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB} -f /app/customer_success_schema.sql"
+sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/customer_success_schema.sql
 
 # Ensure the application role can read/write the initialized schema and table.
-su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB}" <<SQL
+sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" <<SQL
 GRANT CONNECT ON DATABASE ${POSTGRES_DB} TO ${POSTGRES_USER};
 GRANT USAGE ON SCHEMA public TO ${POSTGRES_USER};
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${POSTGRES_USER};
@@ -52,7 +52,7 @@ SQL
 
 # Load demo data or Google Sheet data on startup.
 if [[ "${LOAD_DEMO_DATA,,}" == "true" ]]; then
-  su -s /bin/bash postgres -c "psql -v ON_ERROR_STOP=1 --dbname ${POSTGRES_DB} -f /app/customer_success_sample_data.sql"
+  sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/customer_success_sample_data.sql
   echo "Loaded demo data into Customer_Success, feature_request, and Customer_success_health_score tables."
 else
   if [[ "${READ_FROM_INTERNAL_DATABASE,,}" == "true" ]]; then

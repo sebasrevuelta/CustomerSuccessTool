@@ -7,7 +7,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends postgresql postgresql-client \
+    && apt-get install -y --no-install-recommends postgresql postgresql-client sudo \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
@@ -31,5 +31,11 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 5000
 EXPOSE 5432
+
+RUN useradd -m appuser
+RUN chown -R appuser:appuser /app
+RUN echo "appuser ALL=(ALL) NOPASSWD: /usr/bin/pg_ctlcluster, /usr/bin/pg_isready, /usr/bin/psql" > /etc/sudoers.d/appuser \
+    && chmod 440 /etc/sudoers.d/appuser
+USER appuser
 
 CMD ["/app/docker-entrypoint.sh"]
