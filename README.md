@@ -83,5 +83,5 @@ With `LOAD_DEMO_DATA=False` (default), startup syncs `Customer_Success` from Goo
 Run the sync job to read from Google Sheets and upsert into `"Customer_Success"`:
 
 ```bash
-python nurture.py
+python src/nurture.py
 ```
