@@ -1,6 +1,5 @@
-# CustomerSuccessTool
-
-A small Flask app that reads data from a Google Sheet and displays it in a table.
+# Customer Health Score Tool
+This app reads data from a Google Sheet and displays it in a table.
 
 ## Setup
 
@@ -60,13 +59,6 @@ A small Flask app that reads data from a Google Sheet and displays it in a table
 3. **Open the app**
 
    Visit http://127.0.0.1:5000
-
-### Docker notes
-
-- Keep `credentials.json` in the project root so the mount path in the command works as-is.
-- `GOOGLE_CREDENTIALS_PATH` is optional because the app defaults to `credentials.json`.
-- PostgreSQL starts inside the same container and loads `customer_success_schema.sql` and `customer_success_sample_data.sql` on startup.
-- Database connection values in this setup are `host=127.0.0.1`, `port=5432`, `dbname=customer_success`, `user=appuser`, `password=app_password`.
 
 ### Run with demo data (`LOAD_DEMO_DATA=True`)
 
