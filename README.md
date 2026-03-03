@@ -67,7 +67,7 @@ If you want to start without Google Sheet sync and populate demo rows instead:
 1. Set `LOAD_DEMO_DATA=True` in `.env` (or pass `-e LOAD_DEMO_DATA=True` to `docker run`).
 2. Start the container normally.
 
-With `LOAD_DEMO_DATA=True`, startup loads sample rows from `customer_success_sample_data.sql` into both `Customer_Success` and `feature_request`.  
+With `LOAD_DEMO_DATA=True`, startup loads sample rows from `sql/customer_success_sample_data.sql` into both `Customer_Success` and `feature_request`.  
 With `LOAD_DEMO_DATA=False` (default), startup syncs `Customer_Success` from Google Sheets.
 
 ## Sync Google Sheet to PostgreSQL

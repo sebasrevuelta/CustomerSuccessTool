@@ -16,8 +16,8 @@ RUN pip install -r /app/requirements.txt
 
 COPY src /app/src
 COPY templates /app/templates
-COPY customer_success_schema.sql /app/customer_success_schema.sql
-COPY customer_success_sample_data.sql /app/customer_success_sample_data.sql
+COPY sql/customer_success_schema.sql /app/sql/customer_success_schema.sql
+COPY sql/customer_success_sample_data.sql /app/sql/customer_success_sample_data.sql
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 

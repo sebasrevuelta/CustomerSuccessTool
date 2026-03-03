@@ -51,7 +51,7 @@ SELECT 'CREATE DATABASE ${POSTGRES_DB} OWNER ${INTERNAL_DATABASE_USERNAME}'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${POSTGRES_DB}')\gexec
 SQL
 
-sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/customer_success_schema.sql
+sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/sql/customer_success_schema.sql
 
 # Ensure the application role can read/write the initialized schema and table.
 sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" <<SQL
@@ -67,7 +67,7 @@ SQL
 
 # Load demo data or Google Sheet data on startup.
 if [[ "${LOAD_DEMO_DATA,,}" == "true" ]]; then
-  sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/customer_success_sample_data.sql
+  sudo -u postgres psql -v ON_ERROR_STOP=1 --dbname "${POSTGRES_DB}" -f /app/sql/customer_success_sample_data.sql
   echo "Loaded demo data into Customer_Success, feature_request, and Customer_success_health_score tables."
 else
   if [[ "${READ_FROM_INTERNAL_DATABASE,,}" == "true" ]]; then
