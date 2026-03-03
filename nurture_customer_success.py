@@ -12,6 +12,8 @@ from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 from sqlalchemy import MetaData, Table, create_engine, text
 
+from aws_secrets import get_google_credentials_info, get_google_sheet_id
+
 load_dotenv()
 
 def _env_str(name, default=""):
@@ -35,8 +37,6 @@ def _env_int(name, default):
         return default
 
 
-GOOGLE_CREDENTIALS_PATH = _env_str("GOOGLE_CREDENTIALS_PATH", "credentials.json")
-GOOGLE_SHEET_ID = _env_str("GOOGLE_SHEET_ID", "")
 GOOGLE_SHEET_TAB = _env_str("GOOGLE_SHEET_TAB", "Dashboard")
 GOOGLE_SHEET_HEADER_ROW = _env_int("GOOGLE_SHEET_HEADER_ROW", 4)
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -202,18 +202,13 @@ def get_table_columns(database_url):
 
 
 def get_sheet_rows(expected_columns):
-    if not GOOGLE_SHEET_ID:
+    google_sheet_id = get_google_sheet_id()
+    if not google_sheet_id:
         raise ValueError("GOOGLE_SHEET_ID is not set")
-    if not os.path.isfile(GOOGLE_CREDENTIALS_PATH):
-        raise FileNotFoundError(
-            f"Credentials file not found: {GOOGLE_CREDENTIALS_PATH}"
-        )
-
-    credentials = Credentials.from_service_account_file(
-        GOOGLE_CREDENTIALS_PATH, scopes=SCOPES
-    )
+    credentials_info = get_google_credentials_info()
+    credentials = Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
     client = gspread.authorize(credentials)
-    worksheet = client.open_by_key(GOOGLE_SHEET_ID).worksheet(GOOGLE_SHEET_TAB)
+    worksheet = client.open_by_key(google_sheet_id).worksheet(GOOGLE_SHEET_TAB)
     values = worksheet.get_all_values()
     if not values:
         return []

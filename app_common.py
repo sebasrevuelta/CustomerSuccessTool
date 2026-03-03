@@ -7,9 +7,12 @@ import os
 import secrets
 from decimal import Decimal, InvalidOperation
 from hmac import compare_digest
+from urllib.parse import quote_plus
 
 import flask
 from sqlalchemy import create_engine
+
+from aws_secrets import get_internal_database_credentials
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -37,10 +40,16 @@ def get_engine():
 
 
 def get_database_url():
-    database_url = os.environ.get("DATABASE_URL")
-    if not database_url:
-        raise RuntimeError("DATABASE_URL environment variable is required")
-    return database_url
+    username, password = get_internal_database_credentials()
+    host = os.environ.get("INTERNAL_DATABASE_HOST", "127.0.0.1").strip() or "127.0.0.1"
+    port = os.environ.get("INTERNAL_DATABASE_PORT", "5432").strip() or "5432"
+    name = (
+        os.environ.get("INTERNAL_DATABASE_NAME", "customer_success").strip()
+        or "customer_success"
+    )
+    quoted_username = quote_plus(username)
+    quoted_password = quote_plus(password)
+    return f"postgresql+psycopg2://{quoted_username}:{quoted_password}@{host}:{port}/{name}"
 
 
 def parse_arr_filter(raw_value):

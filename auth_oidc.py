@@ -9,6 +9,8 @@ from urllib.parse import urlencode
 import flask
 from authlib.integrations.flask_client import OAuth
 
+from aws_secrets import get_oidc_client_id, get_oidc_client_secret
+
 
 def oidc_enabled():
     return os.environ.get("OIDC_ENABLED", "false").strip().lower() == "true"
@@ -43,8 +45,8 @@ def setup_oidc(app):
     oauth = OAuth(app)
     oauth.register(
         name="oidc",
-        client_id=_get_required("OIDC_CLIENT_ID"),
-        client_secret=_get_required("OIDC_CLIENT_SECRET"),
+        client_id=get_oidc_client_id(),
+        client_secret=get_oidc_client_secret(),
         server_metadata_url=_get_required("OIDC_DISCOVERY_URL"),
         client_kwargs={
             "scope": os.environ.get("OIDC_SCOPE", "openid profile email"),
