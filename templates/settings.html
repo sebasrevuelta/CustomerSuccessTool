@@ -113,7 +113,7 @@
       <div class="info-card">
         <p class="info-title">How Health Score Is Calculated</p>
         <p class="info-text">
-          Health Score is the rounded average of the enabled factor scores: Last Activity (days_since_last_contact_score), Contributors (contributors_score), Health AE (health_ae_score), and Feature Request (critical_fr_score). Enabling a factor includes it in the average; disabling a factor removes it from the calculation. This can increase or decrease the final Health Score depending on that factor's value for each account.
+          Health Score is the rounded average of the enabled factor scores: Last Activity (days_since_last_contact_score), Contributors (contributors_score), Health AE (health_ae_score), Feature Request (critical_fr_score), and SMS (sms_score, equal to sms_usage). Enabling a factor includes it in the average; disabling a factor removes it from the calculation. This can increase or decrease the final Health Score depending on that factor's value for each account.
         </p>
       </div>
       <div class="toggle-grid">
@@ -135,7 +135,7 @@
         </div>
         <div class="toggle-card">
           <span class="toggle-label">SMS factor</span>
-          <button class="toggle-btn" data-toggle-id="sms_factor" data-locked="true" type="button" disabled>Disabled</button>
+          <button class="toggle-btn enabled" data-toggle-id="sms_factor" type="button">Enabled</button>
         </div>
         <div class="toggle-card">
           <span class="toggle-label">AI Detection factor</span>
@@ -167,9 +167,14 @@
         contributors_factor: true,
         health_ae_factor: true,
         feature_request_factor: true,
-        sms_factor: false,
+        sms_factor: true,
         ai_detection_factor: false,
       };
+      const smsMigrationKey = "setting_sms_factor_enabled_default_v1";
+      if (window.localStorage.getItem(smsMigrationKey) !== "true") {
+        window.localStorage.setItem("setting_sms_factor", "true");
+        window.localStorage.setItem(smsMigrationKey, "true");
+      }
       function setSettingCookie(toggleId, enabled) {
         const encodedValue = enabled ? "true" : "false";
         document.cookie = `${toggleId}=${encodedValue}; path=/; max-age=31536000; samesite=lax`;

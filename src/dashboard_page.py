@@ -3,7 +3,7 @@ Dashboard page routes and data logic.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
 
 import flask
@@ -21,6 +21,30 @@ from app_common import (
     validate_csrf,
 )
 from nurture_customer_success import sync_customer_success
+
+
+def _sortable_value(value):
+    if value is None:
+        return (3, "")
+    if isinstance(value, bool):
+        return (0, int(value))
+    if isinstance(value, (int, float, Decimal)):
+        return (0, Decimal(str(value)))
+    if isinstance(value, datetime):
+        return (1, value.timestamp())
+    if isinstance(value, date):
+        return (1, value.toordinal())
+    return (2, str(value).strip().lower())
+
+
+def _sort_customer_rows(rows, sort_by, sort_dir):
+    valid_direction = "desc" if sort_dir == "desc" else "asc"
+    reverse = valid_direction == "desc"
+
+    rows_with_values = [row for row in rows if row.get(sort_by) is not None]
+    rows_without_values = [row for row in rows if row.get(sort_by) is None]
+    rows_with_values.sort(key=lambda row: _sortable_value(row.get(sort_by)), reverse=reverse)
+    return rows_with_values + rows_without_values
 
 
 def _build_scores_for_row(mapped_row):
@@ -41,6 +65,12 @@ def _build_scores_for_row(mapped_row):
         mapped_row["days_since_last_contact_score"] = (
             Decimal("100") - Decimal(days_since_last_contact)
         )
+
+    sms_usage = mapped_row.get("sms_usage")
+    if sms_usage is None:
+        mapped_row["sms_score"] = None
+    else:
+        mapped_row["sms_score"] = Decimal(sms_usage)
 
     open_critical_feature_request = mapped_row.get("open_critical_feature_request")
     if open_critical_feature_request is None:
@@ -84,6 +114,7 @@ def _compute_dynamic_health_score(
     use_contributors_factor,
     use_health_ae_factor,
     use_feature_request_factor,
+    use_sms_factor,
 ):
     score_components = []
     if use_health_ae_factor and mapped_row.get("health_ae_score") is not None:
@@ -97,6 +128,8 @@ def _compute_dynamic_health_score(
         and mapped_row.get("days_since_last_contact_score") is not None
     ):
         score_components.append(Decimal(mapped_row["days_since_last_contact_score"]))
+    if use_sms_factor and mapped_row.get("sms_score") is not None:
+        score_components.append(Decimal(mapped_row["sms_score"]))
 
     if not score_components:
         return None
@@ -115,6 +148,9 @@ def get_customer_success_data(
     use_contributors_factor=True,
     use_health_ae_factor=True,
     use_feature_request_factor=True,
+    use_sms_factor=True,
+    sort_by="account_name",
+    sort_dir="asc",
 ):
     try:
         with get_engine().connect() as connection:
@@ -154,7 +190,6 @@ def get_customer_success_data(
                     table.c.active_contributors_count >= active_contributors_count_min
                 )
 
-            query = query.order_by(table.c.account_name)
             result = connection.execute(query)
             headers = list(result.keys())
             rows = []
@@ -167,6 +202,7 @@ def get_customer_success_data(
                     use_contributors_factor=use_contributors_factor,
                     use_health_ae_factor=use_health_ae_factor,
                     use_feature_request_factor=use_feature_request_factor,
+                    use_sms_factor=use_sms_factor,
                 )
                 rows.append(mapped_row)
 
@@ -178,9 +214,14 @@ def get_customer_success_data(
                 headers.append("critical_fr_score")
             if "health_ae_score" not in headers:
                 headers.append("health_ae_score")
+            if "sms_score" not in headers:
+                headers.append("sms_score")
             if "health_score" not in headers:
                 insert_idx = 2 if len(headers) >= 2 else len(headers)
                 headers.insert(insert_idx, "health_score")
+
+            effective_sort_by = sort_by if sort_by in set(headers) else "account_name"
+            rows = _sort_customer_rows(rows, effective_sort_by, sort_dir)
 
             tam_query = (
                 select(table.c.technical_account_manager)
@@ -252,6 +293,7 @@ def persist_customer_success_health_score_snapshot(
     use_contributors_factor,
     use_health_ae_factor,
     use_feature_request_factor,
+    use_sms_factor,
 ):
     with create_engine(database_url, pool_pre_ping=True).begin() as connection:
         customer_table = Table("Customer_Success", MetaData(), autoload_with=connection)
@@ -295,6 +337,7 @@ def persist_customer_success_health_score_snapshot(
                 use_contributors_factor=use_contributors_factor,
                 use_health_ae_factor=use_health_ae_factor,
                 use_feature_request_factor=use_feature_request_factor,
+                use_sms_factor=use_sms_factor,
             )
             if mapped_row["health_score"] is None:
                 continue
@@ -328,6 +371,10 @@ def register_dashboard_routes(app):
         contributors_min = parse_non_negative_decimal_filter(
             flask.request.args.get("active_contributors_count_min")
         )
+        requested_sort_by = flask.request.args.get("sort_by", "account_name").strip()
+        requested_sort_dir = flask.request.args.get("sort_dir", "asc").strip().lower()
+        if requested_sort_dir not in {"asc", "desc"}:
+            requested_sort_dir = "asc"
         use_last_activity_factor = parse_enabled_flag(
             flask.request.args.get(
                 "last_activity_factor", flask.request.cookies.get("last_activity_factor")
@@ -353,6 +400,10 @@ def register_dashboard_routes(app):
             ),
             default=True,
         )
+        use_sms_factor = parse_enabled_flag(
+            flask.request.args.get("sms_factor", flask.request.cookies.get("sms_factor")),
+            default=True,
+        )
 
         (
             headers,
@@ -375,6 +426,9 @@ def register_dashboard_routes(app):
             use_contributors_factor=use_contributors_factor,
             use_health_ae_factor=use_health_ae_factor,
             use_feature_request_factor=use_feature_request_factor,
+            use_sms_factor=use_sms_factor,
+            sort_by=requested_sort_by,
+            sort_dir=requested_sort_dir,
         )
         arr_max_value = float(arr_max)
         arr_min_value = float(arr_min if arr_min <= arr_max else arr_max)
@@ -408,6 +462,8 @@ def register_dashboard_routes(app):
             contributors_min_value=contributors_min_value,
             contributors_max_value=contributors_max_value,
             last_refresh_display=last_refresh_display,
+            selected_sort_by=requested_sort_by,
+            selected_sort_dir=requested_sort_dir,
             refresh_message=flask.request.args.get("refresh_message", ""),
             refresh_status=flask.request.args.get("refresh_status", ""),
             csrf_token=get_or_create_csrf_token(),
@@ -429,6 +485,10 @@ def register_dashboard_routes(app):
         contributors_min = flask.request.form.get(
             "active_contributors_count_min", "0"
         ).strip()
+        sort_by = flask.request.form.get("sort_by", "account_name").strip()
+        sort_dir = flask.request.form.get("sort_dir", "asc").strip().lower()
+        if sort_dir not in {"asc", "desc"}:
+            sort_dir = "asc"
         use_last_activity_factor = parse_enabled_flag(
             flask.request.cookies.get("last_activity_factor"), default=True
         )
@@ -441,6 +501,9 @@ def register_dashboard_routes(app):
         use_feature_request_factor = parse_enabled_flag(
             flask.request.cookies.get("feature_request_factor"), default=True
         )
+        use_sms_factor = parse_enabled_flag(
+            flask.request.cookies.get("sms_factor"), default=True
+        )
 
         try:
             database_url = get_database_url()
@@ -451,6 +514,7 @@ def register_dashboard_routes(app):
                 use_contributors_factor=use_contributors_factor,
                 use_health_ae_factor=use_health_ae_factor,
                 use_feature_request_factor=use_feature_request_factor,
+                use_sms_factor=use_sms_factor,
             )
             refresh_message = (
                 "Load completed. "
@@ -473,6 +537,8 @@ def register_dashboard_routes(app):
                 annual_recurring_revenue_min=arr_min,
                 open_critical_feature_request_min=critical_min,
                 active_contributors_count_min=contributors_min,
+                sort_by=sort_by,
+                sort_dir=sort_dir,
                 refresh_message=refresh_message,
                 refresh_status=refresh_status,
             )

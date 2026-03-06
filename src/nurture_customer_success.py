@@ -47,7 +47,7 @@ INT_FIELDS = {
     "total_contributors",
     "contributors_last_30_days",
 }
-DECIMAL_FIELDS = {"active_contributors_count", "annual_recurring_revenue"}
+DECIMAL_FIELDS = {"active_contributors_count", "annual_recurring_revenue", "sms_usage"}
 DATE_FIELDS = {"last_engagement_date", "latest_contract_end_date", "license_expiration_date"}
 BOOL_FIELDS = {"sast", "ssc", "secrets"}
 HEALTH_COLORS = {"green", "yellow", "red"}
@@ -60,6 +60,7 @@ UPSERT_SQL = text(
         customer_stage,
         account_owner,
         annual_recurring_revenue,
+        sms_usage,
         technical_account_manager,
         last_engagement_date,
         sast,
@@ -81,6 +82,7 @@ UPSERT_SQL = text(
         :customer_stage,
         :account_owner,
         :annual_recurring_revenue,
+        :sms_usage,
         :technical_account_manager,
         :last_engagement_date,
         :sast,
@@ -101,6 +103,7 @@ UPSERT_SQL = text(
         customer_stage = EXCLUDED.customer_stage,
         account_owner = EXCLUDED.account_owner,
         annual_recurring_revenue = EXCLUDED.annual_recurring_revenue,
+        sms_usage = EXCLUDED.sms_usage,
         technical_account_manager = EXCLUDED.technical_account_manager,
         last_engagement_date = EXCLUDED.last_engagement_date,
         sast = EXCLUDED.sast,

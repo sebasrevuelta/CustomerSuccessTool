@@ -23,7 +23,10 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
-app = flask.Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+app = flask.Flask(__name__, template_folder=os.path.join(PROJECT_ROOT, "templates"))
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-only-change-me")
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = _env_bool("SESSION_COOKIE_SECURE", False)

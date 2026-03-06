@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS "Customer_Success" (
     customer_stage VARCHAR(50),
     account_owner VARCHAR(150),
     annual_recurring_revenue NUMERIC(12,2),
+    sms_usage NUMERIC(12,2) CHECK (sms_usage >= 0 AND sms_usage <= 100),
     technical_account_manager VARCHAR(150),
     last_engagement_date DATE,
     sast BOOLEAN DEFAULT FALSE,

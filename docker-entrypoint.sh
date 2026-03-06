@@ -77,7 +77,7 @@ else
     if ! python -c "from nurture_feature_request import sync_feature_request; import os; print(sync_feature_request(os.environ['DATABASE_URL']))"; then
       echo "Warning: failed loading feature_request data from Google Sheet at startup"
     fi
-    if ! python -c "from dashboard_page import persist_customer_success_health_score_snapshot; import os; print(persist_customer_success_health_score_snapshot(database_url=os.environ['DATABASE_URL'], use_last_activity_factor=True, use_contributors_factor=True, use_health_ae_factor=True, use_feature_request_factor=True))"; then
+    if ! python -c "from dashboard_page import persist_customer_success_health_score_snapshot; import os; print(persist_customer_success_health_score_snapshot(database_url=os.environ['DATABASE_URL'], use_last_activity_factor=True, use_contributors_factor=True, use_health_ae_factor=True, use_feature_request_factor=True, use_sms_factor=True))"; then
       echo "Warning: failed loading Customer_success_health_score snapshot at startup"
     else
       echo "Startup load completed for Customer_Success, feature_request, and Customer_success_health_score."

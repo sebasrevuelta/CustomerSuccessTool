@@ -169,6 +169,15 @@
       color: #f2cc60;
       font-weight: 600;
     }
+    th a {
+      color: inherit;
+      text-decoration: none;
+      display: inline-block;
+      width: 100%;
+    }
+    th a:hover {
+      text-decoration: underline;
+    }
     td.health-high { color: #2ea043; font-weight: 700; }
     td.health-mid { color: #d29922; font-weight: 700; }
     td.health-low { color: #f85149; font-weight: 700; }
@@ -235,6 +244,8 @@
   </div>
   <h1>Dashboard</h1>
   <form method="get">
+    <input type="hidden" name="sort_by" value="{{ selected_sort_by }}">
+    <input type="hidden" name="sort_dir" value="{{ selected_sort_dir }}">
     <div class="filters">
       <div class="filter-group">
         <label for="technical_account_manager">Technical Account Manager</label>
@@ -311,6 +322,7 @@
       <a class="btn" href="/">Clear</a>
     </div>
   </form>
+  <!-- nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token -->
   <form method="post" action="/refresh" onsubmit="syncRefreshFilters()">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="technical_account_manager" value="{{ selected_tam }}">
@@ -319,6 +331,8 @@
     <input id="refresh-arr-min" type="hidden" name="annual_recurring_revenue_min" value="{{ arr_min_value }}">
     <input id="refresh-critical-min" type="hidden" name="open_critical_feature_request_min" value="{{ critical_min_value }}">
     <input id="refresh-contributors-min" type="hidden" name="active_contributors_count_min" value="{{ contributors_min_value }}">
+    <input type="hidden" name="sort_by" value="{{ selected_sort_by }}">
+    <input type="hidden" name="sort_dir" value="{{ selected_sort_dir }}">
     <div class="filter-actions">
       <button class="btn" type="submit">Refresh</button>
       <span class="last-refresh">Last refresh {{ last_refresh_display }}</span>
@@ -345,40 +359,50 @@
         <tr>
           {% for h in headers %}
           {% if h not in ['days_since_last_contact', 'license_expiration_date', 'total_contributors', 'contributors_last_30_days', 'insert_time'] %}
+          {% set next_sort_dir = 'asc' %}
+          {% if selected_sort_by == h and selected_sort_dir == 'asc' %}
+            {% set next_sort_dir = 'desc' %}
+          {% endif %}
+          {% set sort_arrow = '' %}
+          {% if selected_sort_by == h %}
+            {% set sort_arrow = ' ▲' if selected_sort_dir == 'asc' else ' ▼' %}
+          {% endif %}
           {% if h == 'deployment_id' %}
-          <th>ID</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">ID{{ sort_arrow }}</a></th>
           {% elif h == 'health_score' %}
-          <th>Health Score</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Health Score{{ sort_arrow }}</a></th>
           {% elif h == 'account_name' %}
-          <th>Name</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Name{{ sort_arrow }}</a></th>
           {% elif h == 'customer_stage' %}
-          <th>Stage</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Stage{{ sort_arrow }}</a></th>
           {% elif h == 'account_owner' %}
-          <th>Owner</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Owner{{ sort_arrow }}</a></th>
           {% elif h == 'annual_recurring_revenue' %}
-          <th>ARR</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">ARR{{ sort_arrow }}</a></th>
           {% elif h == 'technical_account_manager' %}
-          <th>TAM</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">TAM{{ sort_arrow }}</a></th>
           {% elif h == 'last_engagement_date' %}
-          <th>Last Contact</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Last Contact{{ sort_arrow }}</a></th>
           {% elif h == 'active_contributors_count' %}
-          <th>Contributors</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Contributors{{ sort_arrow }}</a></th>
           {% elif h == 'contributors_score' %}
-          <th class="score-factor-col">Contributors Score</th>
+          <th class="score-factor-col"><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Contributors Score{{ sort_arrow }}</a></th>
           {% elif h == 'days_since_last_contact_score' %}
-          <th class="score-factor-col">Days Since Last Contact Score</th>
+          <th class="score-factor-col"><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Days Since Last Contact Score{{ sort_arrow }}</a></th>
           {% elif h == 'critical_fr_score' %}
-          <th class="score-factor-col">Critical FR Score</th>
+          <th class="score-factor-col"><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Critical FR Score{{ sort_arrow }}</a></th>
           {% elif h == 'health_ae_score' %}
-          <th class="score-factor-col">Health AE Score</th>
+          <th class="score-factor-col"><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Health AE Score{{ sort_arrow }}</a></th>
+          {% elif h == 'sms_score' %}
+          <th class="score-factor-col"><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">SMS Score{{ sort_arrow }}</a></th>
           {% elif h == 'health_color' %}
-          <th>Health AE</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Health AE{{ sort_arrow }}</a></th>
           {% elif h == 'latest_contract_end_date' %}
-          <th>Contract End</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Contract End{{ sort_arrow }}</a></th>
           {% elif h == 'open_critical_feature_request' %}
-          <th>Critical FR</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">Critical FR{{ sort_arrow }}</a></th>
           {% else %}
-          <th>{{ h | replace('_', ' ') | title }}</th>
+          <th><a href="{{ url_for('index', technical_account_manager=selected_tam, customer_stage=selected_stage, account_owner=selected_owner, annual_recurring_revenue_min=arr_min_value, open_critical_feature_request_min=critical_min_value, active_contributors_count_min=contributors_min_value, sort_by=h, sort_dir=next_sort_dir) }}">{{ h | replace('_', ' ') | title }}{{ sort_arrow }}</a></th>
           {% endif %}
           {% endif %}
           {% endfor %}
@@ -428,7 +452,7 @@
           {% if column == 'active_contributors_count' and value is not none and value != '' %}
             {% set display_value = "%.2f%%"|format(value|float) %}
           {% endif %}
-          {% if column in ['contributors_score', 'days_since_last_contact_score', 'critical_fr_score', 'health_ae_score'] %}
+          {% if column in ['contributors_score', 'days_since_last_contact_score', 'critical_fr_score', 'health_ae_score', 'sms_score'] %}
           <td class="{{ column_class }} score-factor-col">{{ display_value }}</td>
           {% else %}
           <td class="{{ column_class }}">{{ display_value }}</td>
