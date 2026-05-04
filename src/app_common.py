@@ -40,7 +40,11 @@ def get_engine():
 
 
 def get_database_url():
-    username, password = get_internal_database_credentials()
+    if _env_bool("LOAD_DEMO_DATA", True):
+        username = os.environ.get("INTERNAL_DATABASE_USERNAME", "cstool").strip()
+        password = os.environ.get("INTERNAL_DATABASE_PASSWORD", "c$t00l").strip()
+    else:
+        username, password = get_internal_database_credentials()
     host = os.environ.get("INTERNAL_DATABASE_HOST", "127.0.0.1").strip() or "127.0.0.1"
     port = os.environ.get("INTERNAL_DATABASE_PORT", "5432").strip() or "5432"
     name = (

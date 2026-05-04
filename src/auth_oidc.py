@@ -38,6 +38,18 @@ def _env_bool(name: str, default: bool = False):
     return raw_value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _get_oidc_client_id():
+    if _env_bool("LOAD_DEMO_DATA", True):
+        return _get_required("OIDC_CLIENT_ID")
+    return get_oidc_client_id()
+
+
+def _get_oidc_client_secret():
+    if _env_bool("LOAD_DEMO_DATA", True):
+        return _get_required("OIDC_CLIENT_SECRET")
+    return get_oidc_client_secret()
+
+
 def setup_oidc(app):
     if not oidc_enabled():
         return
@@ -45,8 +57,8 @@ def setup_oidc(app):
     oauth = OAuth(app)
     oauth.register(
         name="oidc",
-        client_id=get_oidc_client_id(),
-        client_secret=get_oidc_client_secret(),
+        client_id=_get_oidc_client_id(),
+        client_secret=_get_oidc_client_secret(),
         server_metadata_url=_get_required("OIDC_DISCOVERY_URL"),
         client_kwargs={
             "scope": os.environ.get("OIDC_SCOPE", "openid profile email"),
