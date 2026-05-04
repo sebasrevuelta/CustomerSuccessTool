@@ -128,9 +128,8 @@
           <a class="btn" href="/feature-requests">Clear</a>
         </div>
       </form>
-      <!-- nosemgrep: python.django.security.django-no-csrf-token.django-no-csrf-token -->
       <form method="post" action="/refresh-feature-requests">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% csrf_token %}
         <input type="hidden" name="account_name" value="{{ selected_account_name }}">
         <input type="hidden" name="technical_account_manager" value="{{ selected_technical_account_manager }}">
         <input type="hidden" name="priority" value="{{ selected_priority }}">
